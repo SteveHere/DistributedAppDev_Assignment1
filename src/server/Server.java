@@ -7,22 +7,28 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Map;
-import java.util.Queue;
-
+import java.util.HashMap;
+import java.util.LinkedList;
 import common.Pair;
 
 public class Server {
 	
-	static Map<String, String> agentsLoginInfo;
-	static Map<String, RequestHandler> customerThreads;
-	static Map<String, RequestHandler> agentThreads;
-	static Map<String, Pair<String, String>> agentToCustomer;
-	static Queue<String> waitingCustomers; 
+	static HashMap<String, String> agentsLoginInfo;
+	static HashMap<String, RequestHandler> customerThreads;
+	static HashMap<String, RequestHandler> agentThreads;
+	static HashMap<String, Pair<String, String>> agentToCustomer;
+	static LinkedList<String> waitingCustomers; 
 	
 	static PrintWriter logFile;
 	
 	public static void main(String[] args) {
+		agentsLoginInfo = new HashMap<String, String>();
+		customerThreads = new HashMap<String, RequestHandler>();
+		agentThreads = new HashMap<String, RequestHandler>();
+		agentToCustomer = new HashMap<String, Pair<String, String>>();
+		waitingCustomers = new LinkedList<String>();
+		
+		
 		ServerSocket listener;  
 		Socket connection; 
 		

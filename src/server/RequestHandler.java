@@ -79,6 +79,7 @@ public class RequestHandler extends Thread {
 			}
 			toClient.close();
 			fromClient.close();
+			clientSocket.close();
 		} catch (IOException ioe) {
 			Server.logFile.println((System.currentTimeMillis() / 1000L) 
 					+ ": IO Exception occured while connecting with "
@@ -96,12 +97,16 @@ public class RequestHandler extends Thread {
 			Pair<String, String> temp = Server.agentToCustomer.get(username);
 			if(Server.customerThreads.get(temp.getLeft()) == null && Server.customerThreads.get(temp.getRight()) == null){
 				Server.agentToCustomer.put(username, new Pair<String, String>(null, null));
+				toClient.println("Remove~" + temp.getLeft());
+				toClient.println("Remove~" + temp.getRight());
 			}
 			else if(Server.customerThreads.get(temp.getLeft()) == null){
 				Server.agentToCustomer.put(username, new Pair<String, String>(temp.getRight(), null));
+				toClient.println("Remove~" + temp.getLeft());
 			}
 			else if(Server.customerThreads.get(temp.getRight()) == null){
 				Server.agentToCustomer.put(username, new Pair<String, String>(temp.getLeft(), null));
+				toClient.println("Remove~" + temp.getRight());
 			}
 			
 			if(fromClient.ready()){
@@ -155,8 +160,8 @@ public class RequestHandler extends Thread {
 			}
 			
 			//Next, check if the agent is full and whether or not they want to exit
-			//If not, take from queue and give it to agent
-			if(clientWantsToExit == false && Server.agentToCustomer.get(username).isFull()){
+			//If not for both, take from queue and give it to agent
+			if(clientWantsToExit == false && !Server.agentToCustomer.get(username).isFull()){
 				try{
 					String customerToAdd = Server.waitingCustomers.remove();
 					toClient.println("NewCustomer~" + customerToAdd);
@@ -251,6 +256,7 @@ public class RequestHandler extends Thread {
 	}
 
 	private boolean isAgentLoggedIn(String username) {
+		
 		return Server.agentThreads.containsKey(username);
 	}
 	
