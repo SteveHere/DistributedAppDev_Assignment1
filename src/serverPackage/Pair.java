@@ -26,5 +26,9 @@ public class Pair<L,R> {
 	
 	@Override
 	public String toString() { return left.toString() + "~" + right.toString(); }
+	
+	public boolean isFull() { return left != null && right != null; }
+	
+	public boolean contains(Object object) { return left.equals(object) || right.equals(object); }
 
 }

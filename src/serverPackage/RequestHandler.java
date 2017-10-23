@@ -1,13 +1,22 @@
 package serverPackage;
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.NoSuchElementException;
 
 public class RequestHandler extends Thread {
 	
 	Socket clientSocket;
+	//These members are generated
+	private PrintWriter toClient;
+	private BufferedReader fromClient;
+	private String username;
+	
+	//This is only used by customers
+	private PrintWriter transcript;
 	
 	public RequestHandler(Socket clientSocket) {
 		this.clientSocket = clientSocket;
@@ -19,8 +28,8 @@ public class RequestHandler extends Thread {
 		
 		try{
 	    	//Set up readers and writers
-			PrintWriter toClient = new PrintWriter(clientSocket.getOutputStream(), true);
-			BufferedReader fromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+			toClient = new PrintWriter(clientSocket.getOutputStream(), true);
+			fromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 			
 			//Send first request from server to client requesting details and logininfo
 			toClient.println("Client request required");
@@ -38,7 +47,8 @@ public class RequestHandler extends Thread {
 				else{
 					toClient.println("Connection established");
 					Server.customerThreads.put(clientResponse[1], this);
-					startCustomerConnection(toClient, fromClient);
+					username = clientResponse[1];
+					startCustomerConnection();
 				}
 			}
 			//Agent format: Agent~<username>~<password>
@@ -56,7 +66,9 @@ public class RequestHandler extends Thread {
 				else{
 					toClient.println("Login successful");
 					Server.agentThreads.put(clientResponse[1], this);
-					startAgentConnection(toClient, fromClient);
+					Server.agentToCustomer.put(clientResponse[1], new Pair<String, String>(null, null));
+					username = clientResponse[1];
+					startAgentConnection();
 				}
 			}
 			//If its not neither, print out a format error message to the client
@@ -65,23 +77,171 @@ public class RequestHandler extends Thread {
 			}
 			toClient.close();
 			fromClient.close();
-		}catch(IOException ioe){
+		} catch (IOException ioe) {
 			Server.logFile.println((System.currentTimeMillis() / 1000L) 
 					+ ": IO Exception occured while connecting with "
-					+ clientSocketAddress);
+					+ clientSocketAddress + "\n" 
+					+ ioe.getStackTrace().toString());
 		}
 	}
 	
-	private void startAgentConnection(PrintWriter toClient, BufferedReader fromClient) throws IOException {
-		while(clientSocket.getInetAddress().isReachable(15)){
+	//This method handles connections with agents
+	private void startAgentConnection() throws IOException {
+		boolean clientWantsToExit = false;
+		while(clientWantsToExit == false){
+			//First, check if the customer still exists
+			//If no, remove their name from the pair
+			Pair<String, String> temp = Server.agentToCustomer.get(username);
+			if(Server.customerThreads.get(temp.getLeft()) == null && Server.customerThreads.get(temp.getRight()) == null){
+				Server.agentToCustomer.put(username, new Pair<String, String>(null, null));
+			}
+			else if(Server.customerThreads.get(temp.getLeft()) == null){
+				Server.agentToCustomer.put(username, new Pair<String, String>(temp.getRight(), null));
+			}
+			else if(Server.customerThreads.get(temp.getRight()) == null){
+				Server.agentToCustomer.put(username, new Pair<String, String>(temp.getLeft(), null));
+			}
 			
+			if(fromClient.ready()){
+				//Next, receive a response from the client
+				String response = fromClient.readLine();
+				//If the client wants to quit, only allow it to if it has nobody to attend to
+				if(response.equals("Quit")){
+					if(Server.agentToCustomer.get(username).equals(new Pair<String, String>(null, null))){
+						clientWantsToExit = true;
+						Server.agentThreads.remove(username);
+						Server.agentToCustomer.remove(username);
+						toClient.println("Can quit");
+					}
+					else{
+						toClient.println("Cannot quit");
+					}
+				}
+				//Otherwise, it's a message to a customer
+				//In this case, send it to the appropriate customer
+				//Check if 
+				else{
+					String[] clientResponse = response.split("~", 2);
+					if(clientResponse.length == 2){
+						//If the response is for both customers
+						if(clientResponse[0].equals("Both")){
+							Pair<String, String> customers = Server.agentToCustomer.get(username);
+							//Check if the customers exist and whether they belong to the agent
+							if(Server.customerThreads.containsKey(customers.getLeft())
+									&& Server.customerThreads.containsKey(customers.getRight())
+									&& Server.agentToCustomer.get(username).contains(customers.getLeft())
+									&& Server.agentToCustomer.get(username).contains(customers.getRight())){
+								Server.customerThreads.get(customers.getLeft())
+								.transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+								Server.customerThreads.get(customers.getLeft()).transferMessage(username, clientResponse[1]);
+								
+								Server.customerThreads.get(customers.getRight())
+								.transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+								Server.customerThreads.get(customers.getRight()).transferMessage(username, clientResponse[1]);
+							}
+						}
+						//Otherwise, send the message to the customer that is specified in the agent's response
+						else if(Server.customerThreads.containsKey(clientResponse[0])
+								&& Server.agentToCustomer.get(username).contains(clientResponse[0])
+								){
+							Server.customerThreads.get(clientResponse[0])
+								.transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+							Server.customerThreads.get(clientResponse[0]).transferMessage(username, clientResponse[1]);
+						}
+					}
+				}
+			}
+			
+			//Next, check if the agent is full and whether or not they want to exit
+			//If not, take from queue and give it to agent
+			if(clientWantsToExit == false && Server.agentToCustomer.get(username).isFull()){
+				try{
+					String customerToAdd = Server.waitingCustomers.remove();
+					toClient.println("NewCustomer~" + customerToAdd);
+					Pair<String, String> t = Server.agentToCustomer.get(username);
+					Pair<String, String> newPair = null;
+					if(t.getLeft() == null){
+						newPair = new Pair<String, String>(customerToAdd, null);
+					}
+					else if(t.getRight() == null){
+						newPair = new Pair<String, String>(temp.getLeft(), customerToAdd);
+					}
+					Server.agentToCustomer.put(username, newPair);
+				} catch (NoSuchElementException nsee){
+				}
+			}
 		}
 	}
 
-	private void startCustomerConnection(PrintWriter toClient, BufferedReader fromClient) throws IOException {
-		while(clientSocket.getInetAddress().isReachable(15)){
-			
+	//This method handles connections with customers
+	private void startCustomerConnection() throws IOException {
+		//The customer first pushes their own name to the Queue
+		Server.waitingCustomers.add(username);
+		
+		boolean clientWantsToExit = false;
+		String agent = null;
+		while(clientWantsToExit == false){
+			if(fromClient.ready()){
+				//First, receive a response from the client
+				String response = fromClient.readLine();
+				//If the customer requests agents
+				if(response.equals("Waiting for agent")){
+					//If the customer's name is still in queue, send to client to wait for agent
+					if(Server.waitingCustomers.contains(username)){
+						toClient.println("Wait for agent");
+						try {
+							Thread.sleep(5000);
+						} catch (InterruptedException e) {
+							Server.logFile.println((System.currentTimeMillis() / 1000L) 
+							+ ": Thread interruption occured in "
+							+ clientSocket.getInetAddress().toString());
+						}
+					}
+					//If not in queue, search through agentToCustomer to find customer, and return agent
+					else{
+						boolean customerFound = false;
+						for(String agentKey : Server.agentToCustomer.keySet()){
+							Pair<String, String> temp = Server.agentToCustomer.get(agentKey);
+							if(temp.getLeft().equals(username) || temp.getRight().equals(username)){
+								toClient.println(agentKey);
+								agent = agentKey;
+								transcript = new PrintWriter(
+										new FileWriter("/transcripts/" + agent + "~" + username + ".txt", true)
+										);
+								customerFound = true;
+								break;
+							}
+						}
+						//If the customer cannot be found, add back to queue
+						if(customerFound == false){
+							Server.waitingCustomers.add(username);
+							toClient.println("Wait for agent");
+						}
+					}
+				}
+				//If the customer requests to quit, quit.
+				else if(response.equals("Quit")){
+					clientWantsToExit = true;
+					Server.customerThreads.remove(username);
+					Server.agentThreads.get(agent).toClient.println("Remove~" + username);
+					transcript.close();
+				}
+				//Otherwise, the customer is sending a message to the agent
+				else{
+					String[] clientResponse = response.split("~", 2);
+					if(clientResponse.length == 2 && agent != null
+							&& Server.agentThreads.containsKey(agent)){
+						transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+						Server.agentThreads.get(agent).transferMessage(username, clientResponse[1]);
+					}
+				}
+			}
 		}
+	}
+	
+	//This method transfers messages from external calls to the connected client
+	public void transferMessage(String source, String message){
+		toClient.println(source + "~" + message);
 	}
 
 	private boolean isCustomerUsernameTaken(String username) {

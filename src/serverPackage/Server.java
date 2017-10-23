@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
+import java.util.Queue;
 
 public class Server {
 	
@@ -15,6 +16,7 @@ public class Server {
 	static Map<String, RequestHandler> customerThreads;
 	static Map<String, RequestHandler> agentThreads;
 	static Map<String, Pair<String, String>> agentToCustomer;
+	static Queue<String> waitingCustomers; 
 	
 	static PrintWriter logFile;
 	
