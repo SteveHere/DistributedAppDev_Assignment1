@@ -61,6 +61,7 @@ public class Server {
 			logFile.println((System.currentTimeMillis() / 1000L) + ": Server shutting down due to IO problems.");
 		}
 		finally {
+			logFile.flush();
 			logFile.close();
 		}
 	}

@@ -32,8 +32,8 @@ public class AgentClient extends Application {
 	static BufferedReader fromServer;
 	static PrintWriter toServer;
 	static String username;
-	static String customer1 = null;
-	static String customer2 = null;
+	static String customer1;
+	static String customer2;
 	static boolean wantsToQuit = false;
 	static boolean canQuit = false;
 
@@ -48,9 +48,9 @@ public class AgentClient extends Application {
 	
 	@Override
 	public void start(Stage primaryStage){
-		String serverAddress = JOptionPane.showInputDialog(
-				"Enter IP Address of a machine that is\n" +
-				"running the date service on port 9090:");
+		Stage stage = new Stage();
+		String serverAddress = JOptionPane.showInputDialog(null,  "Enter IP Address of the CVT server: ", 
+				"Enter CVT Server IP Address", JOptionPane.QUESTION_MESSAGE);
 
 		try{     
 			boolean correctUsernameFormat = false; //assumed incorrect by default
@@ -77,6 +77,7 @@ public class AgentClient extends Application {
 						"Login Aborted", 
 						JOptionPane.INFORMATION_MESSAGE
 						);
+				System.exit(0);
 			}
 			else{
 				socket = new Socket(serverAddress, 9090);
@@ -92,16 +93,16 @@ public class AgentClient extends Application {
 					toServer.println("Agent~" + input.getLeft() + "~" + input.getRight()); 
 
 					String response = fromServer.readLine();
-					if(response.equals("Connection established")){
-						username = input.getLeft();
-						primaryStage.setTitle("CVT Agent Client  - User: " + username);
-						primaryStage.setScene(getAgentApplicationScene());
-						primaryStage.setResizable(false);
-						primaryStage.show();
+					if(response.equals("Login successful")){
+						username = new String(input.getLeft());
+						stage.setTitle("CVT Agent Client - User: " + username);
+						stage.setScene(getAgentApplicationScene());
+						stage.setResizable(false);
 						
 						AgentThread thread = new AgentThread();
 						thread.start();
-						thread.join();
+						
+						stage.showAndWait();
 					}
 					else if(response.equals("Agent has already logged in")){
 						JOptionPane.showMessageDialog(null, 
@@ -109,19 +110,21 @@ public class AgentClient extends Application {
 								"Agent Already Logged In", 
 								JOptionPane.INFORMATION_MESSAGE
 								);
+						System.exit(0);
 					}
 					else if(response.equals("Incorrect login details")){
 						JOptionPane.showMessageDialog(null, 
 								"Incorrect Login Details. Exiting program.", 
 								"Incorrect Login Details", 
-								JOptionPane.INFORMATION_MESSAGE
+								JOptionPane.ERROR_MESSAGE
 								);
+						System.exit(0);
 					}
 				}
+				
 				fromServer.close();
 				toServer.close();
 				socket.close();
-				System.out.println("Exited");
 			}
 		} catch(Exception e){
 			JOptionPane.showMessageDialog(
@@ -131,6 +134,7 @@ public class AgentClient extends Application {
 					JOptionPane.ERROR_MESSAGE
 					);
 		}
+		System.exit(0);
 	}
 
 	public static void main(String[] args) {
@@ -170,11 +174,11 @@ public class AgentClient extends Application {
 		
 		//Initialization of components
 		
-		Label customer1Label = new Label("Connected Customer: ");
-		Label customer2Label = new Label("Connected Customer: ");
+		customer1Label = new Label("Connected Customer: ");
+		customer2Label = new Label("Connected Customer: ");
 		
-		TextArea customer1Dialog = new TextArea();
-		TextArea customer2Dialog = new TextArea();
+		customer1Dialog = new TextArea();
+		customer2Dialog = new TextArea();
 		
 		TextField inputForCustomer1 = new TextField();
 		TextField inputForCustomer2 = new TextField();
@@ -182,8 +186,8 @@ public class AgentClient extends Application {
 		Button sendToCustomer1 = new Button("Send");
 		Button sendToCustomer2 = new Button("Send");
 		
-		GridPane customer1Input = new GridPane();
-		GridPane customer2Input = new GridPane();
+		customer1Input = new GridPane();
+		customer2Input = new GridPane();
 		
 		Button quit = new Button("Quit Session");
 		
@@ -199,7 +203,10 @@ public class AgentClient extends Application {
 		
 		
 		customer1Input.setHgap(5);
+		customer1Input.setDisable(true);
 		customer2Input.setHgap(5);
+		customer2Input.setDisable(true);
+		
 		
 		inputForCustomer1.setMinWidth(240);
 		inputForCustomer2.setMinWidth(240);
@@ -211,17 +218,21 @@ public class AgentClient extends Application {
 		
 		//Event handling
 		sendToCustomer1.setOnMouseClicked(e -> {
-			customer1Dialog.setText(customer1Dialog.getText() 
-					+ ": " + inputForCustomer1.getText() + "\n");
-			customer1Dialog.positionCaret(customer1Dialog.getLength());
-			toServer.println(customer1 + "~" + inputForCustomer1.getText());
+			if(!inputForCustomer1.getText().equals("") && customer1 != null){
+				customer1Dialog.setText(customer1Dialog.getText() 
+						+ username + ": " + inputForCustomer1.getText() + "\n");
+				customer1Dialog.positionCaret(customer1Dialog.getLength());
+				toServer.println(customer1 + "~" + inputForCustomer1.getText());
+			}
 		});
 		
 		sendToCustomer2.setOnMouseClicked(e -> {
-			customer2Dialog.setText(customer2Dialog.getText() 
-					+ ": " + inputForCustomer2.getText() + "\n");
-			customer2Dialog.positionCaret(customer2Dialog.getLength());
-			toServer.println(customer2 + "~" + inputForCustomer2.getText());
+			if(!inputForCustomer1.getText().equals("") && customer2 != null){
+				customer2Dialog.setText(customer2Dialog.getText() 
+						+  username + ": " + inputForCustomer2.getText() + "\n");
+				customer2Dialog.positionCaret(customer2Dialog.getLength());
+				toServer.println(customer2 + "~" + inputForCustomer2.getText());
+			}
 		});
 		
 		quit.setOnMouseClicked(e -> {

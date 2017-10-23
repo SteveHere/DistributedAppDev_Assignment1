@@ -1,5 +1,6 @@
 package server;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -8,6 +9,7 @@ import java.net.Socket;
 import java.util.NoSuchElementException;
 
 import common.Pair;
+import sun.rmi.log.ReliableLog.LogFile;
 
 public class RequestHandler extends Thread {
 	
@@ -32,6 +34,10 @@ public class RequestHandler extends Thread {
 	    	//Set up readers and writers
 			toClient = new PrintWriter(clientSocket.getOutputStream(), true);
 			fromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+			
+			Server.logFile.println((System.currentTimeMillis() / 1000L) 
+					+ " Client from " + clientSocketAddress + " connected");
+			Server.logFile.flush();
 			
 			//Send first request from server to client requesting details and logininfo
 			toClient.println("Client request required");
@@ -85,36 +91,25 @@ public class RequestHandler extends Thread {
 					+ ": IO Exception occured while connecting with "
 					+ clientSocketAddress + "\n" 
 					+ ioe.getStackTrace().toString());
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+		
+		Server.logFile.println((System.currentTimeMillis() / 1000L) 
+				+ " Client from " + clientSocketAddress + " disconnected");
+		Server.logFile.flush();
 	}
 	
 	//This method handles connections with agents
-	private void startAgentConnection() throws IOException {
+	private void startAgentConnection() throws IOException, InterruptedException {
 		boolean clientWantsToExit = false;
-		while(clientWantsToExit == false){
-			//First, check if the customer still exists
-			//If no, remove their name from the pair
-			Pair<String, String> temp = Server.agentToCustomer.get(username);
-			if(Server.customerThreads.get(temp.getLeft()) == null && Server.customerThreads.get(temp.getRight()) == null){
-				Server.agentToCustomer.put(username, new Pair<String, String>(null, null));
-				toClient.println("Remove~" + temp.getLeft());
-				toClient.println("Remove~" + temp.getRight());
-			}
-			else if(Server.customerThreads.get(temp.getLeft()) == null){
-				Server.agentToCustomer.put(username, new Pair<String, String>(temp.getRight(), null));
-				toClient.println("Remove~" + temp.getLeft());
-			}
-			else if(Server.customerThreads.get(temp.getRight()) == null){
-				Server.agentToCustomer.put(username, new Pair<String, String>(temp.getLeft(), null));
-				toClient.println("Remove~" + temp.getRight());
-			}
-			
+		while(clientWantsToExit == false){			
 			if(fromClient.ready()){
 				//Next, receive a response from the client
 				String response = fromClient.readLine();
 				//If the client wants to quit, only allow it to if it has nobody to attend to
 				if(response.equals("Quit")){
-					if(Server.agentToCustomer.get(username).equals(new Pair<String, String>(null, null))){
+					if(Server.agentToCustomer.get(username).isEmpty()){
 						clientWantsToExit = true;
 						Server.agentThreads.remove(username);
 						Server.agentToCustomer.remove(username);
@@ -135,15 +130,15 @@ public class RequestHandler extends Thread {
 							Pair<String, String> customers = Server.agentToCustomer.get(username);
 							//Check if the customers exist and whether they belong to the agent
 							if(Server.customerThreads.containsKey(customers.getLeft())
-									&& Server.customerThreads.containsKey(customers.getRight())
-									&& Server.agentToCustomer.get(username).contains(customers.getLeft())
-									&& Server.agentToCustomer.get(username).contains(customers.getRight())){
-								Server.customerThreads.get(customers.getLeft())
-								.transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+									&& Server.agentToCustomer.get(username).contains(customers.getLeft())){
+								Server.customerThreads.get(customers.getLeft()).record((System.currentTimeMillis() / 1000L) 
+										+ " " + username + ": " + clientResponse[1]);
 								Server.customerThreads.get(customers.getLeft()).transferMessage(username, clientResponse[1]);
-								
-								Server.customerThreads.get(customers.getRight())
-								.transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+							}
+							if(Server.customerThreads.containsKey(customers.getRight())
+									&& Server.agentToCustomer.get(username).contains(customers.getRight())){
+								Server.customerThreads.get(customers.getRight()).record((System.currentTimeMillis() / 1000L) 
+										+ " " + username + ": " + clientResponse[1]);
 								Server.customerThreads.get(customers.getRight()).transferMessage(username, clientResponse[1]);
 							}
 						}
@@ -151,8 +146,8 @@ public class RequestHandler extends Thread {
 						else if(Server.customerThreads.containsKey(clientResponse[0])
 								&& Server.agentToCustomer.get(username).contains(clientResponse[0])
 								){
-							Server.customerThreads.get(clientResponse[0])
-								.transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+							Server.customerThreads.get(clientResponse[0]).record((System.currentTimeMillis() / 1000L) 
+									+ " " + username + ": " + clientResponse[1]);
 							Server.customerThreads.get(clientResponse[0]).transferMessage(username, clientResponse[1]);
 						}
 					}
@@ -167,21 +162,25 @@ public class RequestHandler extends Thread {
 					toClient.println("NewCustomer~" + customerToAdd);
 					Pair<String, String> t = Server.agentToCustomer.get(username);
 					Pair<String, String> newPair = null;
-					if(t.getLeft() == null){
+					if(t.isEmpty()){
 						newPair = new Pair<String, String>(customerToAdd, null);
 					}
-					else if(t.getRight() == null){
-						newPair = new Pair<String, String>(temp.getLeft(), customerToAdd);
+					else if(t.getLeft() != null){
+						newPair = new Pair<String, String>(t.getLeft(), customerToAdd);
+					}
+					else if(t.getRight() != null){
+						newPair = new Pair<String, String>(customerToAdd, t.getRight());
 					}
 					Server.agentToCustomer.put(username, newPair);
 				} catch (NoSuchElementException nsee){
 				}
 			}
+			Thread.sleep(1000);
 		}
 	}
 
 	//This method handles connections with customers
-	private void startCustomerConnection() throws IOException {
+	private void startCustomerConnection() throws IOException, InterruptedException {
 		//The customer first pushes their own name to the Queue
 		Server.waitingCustomers.add(username);
 		
@@ -192,7 +191,16 @@ public class RequestHandler extends Thread {
 				//First, receive a response from the client
 				String response = fromClient.readLine();
 				//If the customer requests agents
-				if(response.equals("Waiting for agent")){
+				System.out.println(response);
+				//Otherwise, the customer is sending a message to the agent
+				String[] clientResponse = response.split("~", 2);
+				if(clientResponse.length == 2){
+					if(Server.agentThreads.containsKey(clientResponse[0])){
+						record((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+						Server.agentThreads.get(agent).transferMessage(username, clientResponse[1]);
+					}
+				}
+				else if(response.equals("Waiting for agent")){
 					//If the customer's name is still in queue, send to client to wait for agent
 					if(Server.waitingCustomers.contains(username)){
 						toClient.println("Wait for agent");
@@ -213,7 +221,10 @@ public class RequestHandler extends Thread {
 								toClient.println(agentKey);
 								agent = agentKey;
 								transcript = new PrintWriter(
-										new FileWriter("/transcripts/" + agent + "~" + username + ".txt", true)
+										new FileWriter(
+												new File(".").getCanonicalPath() 
+												+ File.separator + "transcripts" 
+														+ File.separator + agent + "~" + username + ".txt", true)
 										);
 								customerFound = true;
 								break;
@@ -230,17 +241,22 @@ public class RequestHandler extends Thread {
 				else if(response.equals("Quit")){
 					clientWantsToExit = true;
 					Server.customerThreads.remove(username);
-					Server.agentThreads.get(agent).toClient.println("Remove~" + username);
-					transcript.close();
-				}
-				//Otherwise, the customer is sending a message to the agent
-				else{
-					String[] clientResponse = response.split("~", 2);
-					if(clientResponse.length == 2 && agent != null
-							&& Server.agentThreads.containsKey(agent)){
-						transcript.println((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
-						Server.agentThreads.get(agent).transferMessage(username, clientResponse[1]);
+					//Remove all traces of the user from the hashmaps
+					if(agent != null && Server.agentThreads.get(agent) != null){
+						Server.agentThreads.get(agent).toClient.println("Remove~" + username);
+						Pair<String, String> temp = Server.agentToCustomer.get(agent);
+						if(temp.getLeft().equals(username)){
+							Server.agentToCustomer.put(agent, new Pair<String, String>(temp.getRight(), null));
+						}
+						else if(temp.getRight().equals(username)){
+							Server.agentToCustomer.put(agent, new Pair<String, String>(temp.getLeft(), null));
+						}
 					}
+					if(transcript != null){
+						transcript.flush();
+						transcript.close();
+					}
+					toClient.println("Can quit");
 				}
 			}
 		}
@@ -250,17 +266,26 @@ public class RequestHandler extends Thread {
 	public void transferMessage(String source, String message){
 		toClient.println(source + "~" + message);
 	}
+	
+	//This method records the messages sent into the customer's transcript 
+	private void record(String string) {
+		if(transcript != null){
+			transcript.println(string);		
+			transcript.flush();
+			System.out.println("REcorded");
+		}
+	}
 
 	private boolean isCustomerUsernameTaken(String username) {
 		return Server.customerThreads.containsKey(username);
 	}
 
 	private boolean isAgentLoggedIn(String username) {
-		
 		return Server.agentThreads.containsKey(username);
 	}
 	
 	private boolean logInAgent(String username, String password) {
-		return Server.agentsLoginInfo.get(username).equals(password);
+		return Server.agentsLoginInfo.get(username) != null
+				&& Server.agentsLoginInfo.get(username).equals(password);
 	}
 }

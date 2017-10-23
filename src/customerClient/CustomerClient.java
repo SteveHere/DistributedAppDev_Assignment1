@@ -1,7 +1,6 @@
 package customerClient;
 
 import java.awt.BorderLayout;
-import java.awt.GridLayout;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -11,8 +10,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.SwingConstants;
-
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -34,12 +31,14 @@ public class CustomerClient extends Application {
 	
 	static Label agentName;
 	static TextArea clientTextArea;
+	static TextField clientText;
+	static Button send;
 	
 	@Override
 	public void start(Stage primaryStage){
-		String serverAddress = JOptionPane.showInputDialog(
-				"Enter IP Address of a machine that is\n" +
-				"running the date service on port 9090:");
+		Stage stage = new Stage();
+		String serverAddress = JOptionPane.showInputDialog(null,  "Enter IP Address of the CVT server: ", 
+				"Enter CVT Server IP Address", JOptionPane.QUESTION_MESSAGE);
 
 		try{
 			boolean correctUsernameFormat = false; //assumed incorrect by default
@@ -66,6 +65,7 @@ public class CustomerClient extends Application {
 						"Login aborted", 
 						JOptionPane.INFORMATION_MESSAGE
 						);
+				System.exit(0);
 			}
 			else{
 				socket = new Socket(serverAddress, 9090);
@@ -82,15 +82,15 @@ public class CustomerClient extends Application {
 
 					String response = fromServer.readLine();
 					if(response.equals("Connection established")){
-						username = input;
-						primaryStage.setTitle("CVT Customer Client - User: " + username);
-						primaryStage.setScene(getCustomerApplicationScene());
-						primaryStage.setResizable(false);
-						primaryStage.show();
+						username = new String(input);
+						stage.setTitle("CVT Customer Client - User: " + username);
+						stage.setScene(getCustomerApplicationScene());
+						stage.setResizable(false);
 						
 						CustomerThread thread = new CustomerThread();
 						thread.start();
-						thread.join();
+						
+						stage.showAndWait();
 					}
 					else if(response.equals("Username already taken")){
 						JOptionPane.showMessageDialog(null, 
@@ -98,6 +98,7 @@ public class CustomerClient extends Application {
 								"Username Already Taken", 
 								JOptionPane.INFORMATION_MESSAGE
 								);
+						System.exit(0);
 					}
 				}
 				fromServer.close();
@@ -112,6 +113,7 @@ public class CustomerClient extends Application {
 					JOptionPane.ERROR_MESSAGE
 					);
 		}
+		System.exit(0);
 	}
 
 	public static void main(String[] args) {
@@ -121,15 +123,10 @@ public class CustomerClient extends Application {
 	private static String loginPrompt(){
 		JTextField username = new JTextField();
 
-		JPanel myPanel = new JPanel(new BorderLayout(5, 5));
+		JPanel myPanel = new JPanel(new BorderLayout(0, 0));
 		
-		JPanel labels = new JPanel(new GridLayout(0,1,2,2));
-		labels.add(new JLabel("Username: ", SwingConstants.LEFT));
-		myPanel.add(labels, BorderLayout.WEST);
-
-		JPanel controls = new JPanel(new GridLayout(0,1,2,2));
-		controls.add(username);
-		myPanel.add(controls, BorderLayout.CENTER);
+		myPanel.add(new JLabel("Username: "), BorderLayout.WEST);
+		myPanel.add(username, BorderLayout.CENTER);
 		
 		int result = JOptionPane.showOptionDialog(null, myPanel, 
 				"CVT Customer: Enter Username", JOptionPane.OK_CANCEL_OPTION, 
@@ -153,23 +150,29 @@ public class CustomerClient extends Application {
 		
 		clientTextArea = new TextArea();
 		
-		TextField clientText = new TextField ();
+		clientText = new TextField ();
 		
-		Button send = new Button("Send");
+		send = new Button("Send");
 		
 		//Styling of components
 		clientTextArea.setMinHeight(390);
 		clientTextArea.setMinWidth(440);
+		
 		clientText.setMinWidth(420);
+		clientText.setDisable(true);
+		
 		quit.setMinWidth(55);
+		
 		send.setMinWidth(55);
+		send.setDisable(true);
 		
 		//Evetn handling
 		send.setOnMouseClicked(e -> {
-			if(!clientText.getText().equals("")){
+			if(!clientText.getText().equals("") && agent != null){
 				clientTextArea.setText(clientTextArea.getText() 
-						+ ": " + clientText.getText() + "\n");
+						+ username + ": " + clientText.getText() + "\n");
 				clientTextArea.positionCaret(clientTextArea.getLength());
+				System.out.println(clientText.getText());
 				toServer.println(agent + "~" + clientText.getText());
 				clientText.setText("");
 			}
