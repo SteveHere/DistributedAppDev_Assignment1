@@ -1,4 +1,4 @@
-package serverPackage;
+package common;
 
 public class Pair<L,R> {
 

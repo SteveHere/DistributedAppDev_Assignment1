@@ -1,4 +1,4 @@
-package serverPackage;
+package server;
 
 public enum ClientType {
 	Agent, Customer

@@ -1,4 +1,4 @@
-package serverPackage;
+package server;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -9,6 +9,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Queue;
+
+import common.Pair;
 
 public class Server {
 	
