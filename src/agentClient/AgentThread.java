@@ -19,7 +19,7 @@ public class AgentThread extends Thread {
 					String[] response = AgentClient.fromServer.readLine().split("~", 2);
 					//If the response has 2 parts, then it is a message from the server, 
 					// the receiving of a new customer, or the end of an existing customer's session
-					System.out.println(response[0]);
+					//System.out.println(response[0]); //For Debugging purposes
 					if(response.length == 2){
 						//If it's a message, display it
 						if(response[0].equals(AgentClient.customer1)){
@@ -110,6 +110,7 @@ public class AgentThread extends Thread {
 									"Session Quit Failed", 
 									JOptionPane.INFORMATION_MESSAGE
 									);
+							AgentClient.wantsToQuit = false;
 						}
 					}
 				}

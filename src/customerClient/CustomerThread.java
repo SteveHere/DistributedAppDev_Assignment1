@@ -77,7 +77,7 @@ public class CustomerThread extends Thread {
 			while(CustomerClient.wantsToQuit == false){
 				if(CustomerClient.fromServer.ready()){
 					String response = CustomerClient.fromServer.readLine();
-					System.out.println(response);
+					//System.out.println(response); //For debugging purposes
 					String[] responseSplit = response.split("~", 2);
 					//If the response has 2 parts, then it is a message from the server
 					if(responseSplit.length == 2){

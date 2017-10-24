@@ -277,16 +277,39 @@ public class AgentClient extends Application {
 				String[] lastLine1 = dialog1[dialog1.length - 1].split(": ", 2);
 				String[] lastLine2 = dialog2[dialog2.length - 1].split(": ", 2);
 				if(lastLine1.length == 2 && lastLine2.length == 2){
-					if(lastLine1[1].equals(lastLine2[1])){
+					if(lastLine1[1].equals(lastLine2[1]) && !lastLine1[0].equals(username) 
+							&& !lastLine2[0].equals(username)){
 						bothCustomersInput.setDisable(false);
 						customer1Input.setDisable(true);
 						customer2Input.setDisable(true);
 					}
 					else{
 						bothCustomersInput.setDisable(true);
+						if(customer1 != null){
+							customer1Input.setDisable(false);
+						}
+						if(customer2 != null){
+							customer2Input.setDisable(false);
+						}
+					}
+				}
+				else{
+					bothCustomersInput.setDisable(true);
+					if(customer1 != null){
 						customer1Input.setDisable(false);
+					}
+					if(customer2 != null){
 						customer2Input.setDisable(false);
 					}
+				}
+			}
+			else{
+				bothCustomersInput.setDisable(true);
+				if(customer1 != null){
+					customer1Input.setDisable(false);
+				}
+				if(customer2 != null){
+					customer2Input.setDisable(false);
 				}
 			}
 		});
@@ -298,16 +321,39 @@ public class AgentClient extends Application {
 				String[] lastLine1 = dialog1[dialog1.length - 1].split(": ", 2);
 				String[] lastLine2 = dialog2[dialog2.length - 1].split(": ", 2);
 				if(lastLine1.length == 2 && lastLine2.length == 2){
-					if(lastLine1[1].equals(lastLine2[1])){
+					if(lastLine1[1].equals(lastLine2[1]) && !lastLine1[0].equals(username)
+							&& !lastLine2[0].equals(username)){
 						bothCustomersInput.setDisable(false);
 						customer1Input.setDisable(true);
 						customer2Input.setDisable(true);
 					}
 					else{
 						bothCustomersInput.setDisable(true);
+						if(customer1 != null){
+							customer1Input.setDisable(false);
+						}
+						if(customer2 != null){
+							customer2Input.setDisable(false);
+						}
+					}
+				}
+				else{
+					bothCustomersInput.setDisable(true);
+					if(customer1 != null){
 						customer1Input.setDisable(false);
+					}
+					if(customer2 != null){
 						customer2Input.setDisable(false);
 					}
+				}
+			}
+			else{
+				bothCustomersInput.setDisable(true);
+				if(customer1 != null){
+					customer1Input.setDisable(false);
+				}
+				if(customer2 != null){
+					customer2Input.setDisable(false);
 				}
 			}
 		});

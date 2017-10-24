@@ -1,6 +1,5 @@
 package server;
 import java.io.BufferedReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -103,7 +102,7 @@ public class RequestHandler extends Thread {
 			if(fromClient.ready()){
 				//Receive a response from the client
 				String response = fromClient.readLine();
-				System.out.println(response); //For debugging purposes
+				//System.out.println(response); //For debugging purposes
 				//If the client wants to quit, only allow it to if it has nobody to attend to
 				if(response.equals("Quit")){
 					if(Server.agentToCustomer.get(username).isEmpty()){
@@ -226,7 +225,7 @@ public class RequestHandler extends Thread {
 			while(clientWantsToExit == false){
 				if(fromClient.ready()){
 					String response = fromClient.readLine();
-					System.out.println(response); //For debugging purposes
+					//System.out.println(response); //For debugging purposes
 					//Otherwise, the customer is sending a message to the agent
 					String[] clientResponse = response.split("~", 2);
 					if(clientResponse.length == 2){
@@ -263,7 +262,7 @@ public class RequestHandler extends Thread {
 				Thread.sleep(1000);
 			}
 		}	
-		System.out.println("Exited customer loop");
+		//System.out.println("Exited customer loop"); //For debugging purposes
 	}
 	
 	//This method transfers messages from external calls to the connected client
