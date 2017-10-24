@@ -84,13 +84,11 @@ public class RequestHandler extends Thread {
 			toClient.close();
 			fromClient.close();
 			clientSocket.close();
-		} catch (IOException ioe) {
+		} catch (IOException | InterruptedException e) {
 			Server.logFile.println((System.currentTimeMillis() / 1000L) 
-					+ ": IO Exception occured while connecting with "
+					+ ": Exception occured while connecting with "
 					+ clientSocketAddress + "\n" 
-					+ ioe.toString());
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+					+ e.toString());
 		}
 		
 		Server.logFile.println((System.currentTimeMillis() / 1000L) 
@@ -103,8 +101,9 @@ public class RequestHandler extends Thread {
 		boolean clientWantsToExit = false;
 		while(clientWantsToExit == false){			
 			if(fromClient.ready()){
-				//Next, receive a response from the client
+				//Receive a response from the client
 				String response = fromClient.readLine();
+				System.out.println(response); //For debugging purposes
 				//If the client wants to quit, only allow it to if it has nobody to attend to
 				if(response.equals("Quit")){
 					if(Server.agentToCustomer.get(username).isEmpty()){
@@ -131,7 +130,6 @@ public class RequestHandler extends Thread {
 				}
 				//Otherwise, it's a message to a customer
 				//In this case, send it to the appropriate customer
-				//Check if 
 				else{
 					String[] clientResponse = response.split("~", 2);
 					if(clientResponse.length == 2){
@@ -198,20 +196,35 @@ public class RequestHandler extends Thread {
 		boolean customerQuit = false;
 		//The thread then periodically checks whether or not the name's still there
 		while(Server.waitingCustomers.contains(username)){
-			//If the client has a response here, it should be a quit or force quit
+			//If the client has a response here, handle it
 			//In this case, remove the customer's name
-			if(fromClient.readLine() != null){
-				Server.waitingCustomers.remove(username);
-				Server.customerThreads.remove(username);
-				customerQuit= true;
+			String response = fromClient.readLine();
+			if(response != null){
+				if(response.equals("Quit") || response.equals("Force quit")){
+					Server.waitingCustomers.remove(username);
+					Server.customerThreads.remove(username);
+					customerQuit= true;
+					break;
+				}
+				else{
+					String[] clientResponse = response.split("~", 2);
+					if(clientResponse.length == 2){
+						if(Server.agentThreads.containsKey(clientResponse[0])){
+							record((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+							Server.agentThreads.get(clientResponse[0]).transferMessage(username, clientResponse[1]);
+							break;
+						}
+					}
+				}				
 			}
-			Thread.sleep(5000);
+			Thread.sleep(3000);
 		}
 		if(customerQuit == false){
 			boolean clientWantsToExit = false;
 			while(clientWantsToExit == false){
-				String response = fromClient.readLine();
-				if(response != null){
+				if(fromClient.ready()){
+					String response = fromClient.readLine();
+					System.out.println(response); //For debugging purposes
 					//Otherwise, the customer is sending a message to the agent
 					String[] clientResponse = response.split("~", 2);
 					if(clientResponse.length == 2){
@@ -249,6 +262,7 @@ public class RequestHandler extends Thread {
 				Thread.sleep(1000);
 			}
 		}	
+		System.out.println("Exited customer loop");
 	}
 	
 	//This method transfers messages from external calls to the connected client

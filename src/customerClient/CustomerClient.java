@@ -177,6 +177,7 @@ public class CustomerClient extends Application {
 						+ username + ": " + clientText.getText() + "\n");
 				clientTextArea.positionCaret(clientTextArea.getLength());
 				toServer.println(agent + "~" + clientText.getText());
+				toServer.flush();
 				clientText.setText("");
 			}
 		});

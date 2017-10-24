@@ -235,6 +235,7 @@ public class AgentClient extends Application {
 						+ username + ": " + inputForCustomer1.getText() + "\n");
 				customer1Dialog.positionCaret(customer1Dialog.getLength());
 				toServer.println(customer1 + "~" + inputForCustomer1.getText());
+				toServer.flush();
 				inputForCustomer1.setText("");
 			}
 		});
