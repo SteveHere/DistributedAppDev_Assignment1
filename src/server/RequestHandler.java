@@ -236,7 +236,7 @@ public class RequestHandler extends Thread {
 						}
 					}
 					//If the customer requests to quit, quit.
-					else if(response.equals("Quit") || response.equals("Force Quit")){
+					else if(response.equals("Quit") || response.equals("Force quit")){
 						clientWantsToExit = true;
 						Server.customerThreads.remove(username);
 						//Remove all traces of the user from the hashmaps
