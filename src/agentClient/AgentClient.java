@@ -45,6 +45,7 @@ public class AgentClient extends Application {
 	
 	static GridPane customer1Input;
 	static GridPane customer2Input;
+	static GridPane bothCustomersInput;
 	
 	@Override
 	public void start(Stage primaryStage){
@@ -103,6 +104,10 @@ public class AgentClient extends Application {
 						thread.start();
 						
 						stage.showAndWait();
+						//The user is quitting via the close button, force quit
+						if(AgentClient.wantsToQuit == false){
+							toServer.println("Force quit");
+						}
 					}
 					else if(response.equals("Agent has already logged in")){
 						JOptionPane.showMessageDialog(null, 
@@ -182,12 +187,15 @@ public class AgentClient extends Application {
 		
 		TextField inputForCustomer1 = new TextField();
 		TextField inputForCustomer2 = new TextField();
+		TextField inputForBoth = new TextField();
 		
 		Button sendToCustomer1 = new Button("Send");
 		Button sendToCustomer2 = new Button("Send");
+		Button sendToBoth = new Button("Send to Both Customers");
 		
 		customer1Input = new GridPane();
 		customer2Input = new GridPane();
+		bothCustomersInput = new GridPane();
 		
 		Button quit = new Button("Quit Session");
 		
@@ -206,13 +214,17 @@ public class AgentClient extends Application {
 		customer1Input.setDisable(true);
 		customer2Input.setHgap(5);
 		customer2Input.setDisable(true);
+		bothCustomersInput.setHgap(5);
+		bothCustomersInput.setDisable(true);
 		
 		
 		inputForCustomer1.setMinWidth(240);
 		inputForCustomer2.setMinWidth(240);
+		inputForBoth.setMinWidth(450);
 		
 		sendToCustomer1.setMinWidth(50);
 		sendToCustomer2.setMinWidth(50);
+		sendToBoth.setMinWidth(120);
 		
 		quit.setMinWidth(100);
 		
@@ -223,15 +235,32 @@ public class AgentClient extends Application {
 						+ username + ": " + inputForCustomer1.getText() + "\n");
 				customer1Dialog.positionCaret(customer1Dialog.getLength());
 				toServer.println(customer1 + "~" + inputForCustomer1.getText());
+				inputForCustomer1.setText("");
 			}
 		});
 		
 		sendToCustomer2.setOnMouseClicked(e -> {
-			if(!inputForCustomer1.getText().equals("") && customer2 != null){
+			if(!inputForCustomer2.getText().equals("") && customer2 != null){
 				customer2Dialog.setText(customer2Dialog.getText() 
 						+  username + ": " + inputForCustomer2.getText() + "\n");
 				customer2Dialog.positionCaret(customer2Dialog.getLength());
 				toServer.println(customer2 + "~" + inputForCustomer2.getText());
+				inputForCustomer2.setText("");
+			}
+		});
+		
+		sendToBoth.setOnMouseClicked(e -> {
+			if(!inputForBoth.getText().equals("") && customer2 != null){
+				customer1Dialog.setText(customer1Dialog.getText() 
+						+ username + ": " + inputForBoth.getText() + "\n");
+				customer1Dialog.positionCaret(customer1Dialog.getLength());
+				customer2Dialog.setText(customer2Dialog.getText() 
+						+  username + ": " + inputForBoth.getText() + "\n");
+				customer2Dialog.positionCaret(customer2Dialog.getLength());
+				toServer.println("Both~" + inputForBoth.getText());
+				inputForCustomer2.setText("");
+				inputForCustomer1.setText("");
+				inputForBoth.setText("");
 			}
 		});
 		
@@ -240,10 +269,52 @@ public class AgentClient extends Application {
 			wantsToQuit = true;
 		});
 		
+		customer1Dialog.textProperty().addListener((obs, old, niu)->{
+			String[] dialog1 = customer1Dialog.getText().split("\n");
+			String[] dialog2 = customer2Dialog.getText().split("\n");
+			if(dialog1.length > 0 && dialog2.length > 0){
+				String[] lastLine1 = dialog1[dialog1.length - 1].split(": ", 2);
+				String[] lastLine2 = dialog2[dialog2.length - 1].split(": ", 2);
+				if(lastLine1.length == 2 && lastLine2.length == 2){
+					if(lastLine1[1].equals(lastLine2[1])){
+						bothCustomersInput.setDisable(false);
+						customer1Input.setDisable(true);
+						customer2Input.setDisable(true);
+					}
+					else{
+						bothCustomersInput.setDisable(true);
+						customer1Input.setDisable(false);
+						customer2Input.setDisable(false);
+					}
+				}
+			}
+		});
+		
+		customer2Dialog.textProperty().addListener((obs, old, niu)->{
+			String[] dialog1 = customer1Dialog.getText().split("\n");
+			String[] dialog2 = customer2Dialog.getText().split("\n");
+			if(dialog1.length > 0 && dialog2.length > 0){
+				String[] lastLine1 = dialog1[dialog1.length - 1].split(": ", 2);
+				String[] lastLine2 = dialog2[dialog2.length - 1].split(": ", 2);
+				if(lastLine1.length == 2 && lastLine2.length == 2){
+					if(lastLine1[1].equals(lastLine2[1])){
+						bothCustomersInput.setDisable(false);
+						customer1Input.setDisable(true);
+						customer2Input.setDisable(true);
+					}
+					else{
+						bothCustomersInput.setDisable(true);
+						customer1Input.setDisable(false);
+						customer2Input.setDisable(false);
+					}
+				}
+			}
+		});
 		
 		//Positioning of components
 		customer1Input.addRow(0, inputForCustomer1, sendToCustomer1);
 		customer2Input.addRow(0, inputForCustomer2, sendToCustomer2);
+		bothCustomersInput.addRow(0, inputForBoth, sendToBoth);
 		
 		result.add(quitHBox, 0, 0, 3, 1);
 		result.add(customer1Label, 0, 1);
@@ -254,7 +325,9 @@ public class AgentClient extends Application {
 		result.add(customer2Dialog, 2, 2);
 		result.add(customer2Input, 2, 3);
 		
-		return new Scene(result, 600, 485);
+		result.add(bothCustomersInput, 0, 4, 3, 1);
+		
+		return new Scene(result, 600, 510);
 	}
 
 }

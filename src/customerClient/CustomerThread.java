@@ -11,79 +11,101 @@ public class CustomerThread extends Thread {
 	@Override
 	public void run() {
 		try{
-			Thread.sleep(1000);
-			//While we haven't found an agent to talk to yet
-			JOptionPane.showMessageDialog(null, 
-					"Waiting for agents to be available", 
-					"Waiting for agents", 
-					JOptionPane.INFORMATION_MESSAGE
-					);
-			while(CustomerClient.agent == null){
-				CustomerClient.toServer.println("Waiting for agent");
-				String response = CustomerClient.fromServer.readLine();
-				//If the response is to wait for an agent, inform the user to do so
-				if(response.equals("Wait for agent")){
-					Platform.runLater(()->{
-						CustomerClient.agentName.setText("Waiting for agents to be available.");
-					});
-					Thread.sleep(1000);
-					Platform.runLater(()->{
-						CustomerClient.agentName.setText("Waiting for agents to be available..");
-					});
-					Thread.sleep(1000);
-					Platform.runLater(()->{
-						CustomerClient.agentName.setText("Waiting for agents to be available...");
-					});
-					Thread.sleep(1000);
-					Platform.runLater(()->{
-						CustomerClient.agentName.setText("Waiting for agents to be available....");
-					});
-					Thread.sleep(1000);
-					Platform.runLater(()->{
-						CustomerClient.agentName.setText("Waiting for agents to be available.....");
-					});
-					Thread.sleep(1000);
+			boolean onlyShowOnce = true;
+			while(CustomerClient.agent == null && CustomerClient.wantsToQuit == false){
+				if(CustomerClient.fromServer.ready()){
+					String response = CustomerClient.fromServer.readLine();
+					//Check if the customer wanted to quit early, and as such allow the customer to do so
+					if(response.equals("Can quit") || response.equals("Agent force quit")){
+						CustomerClient.wantsToQuit = true;
+						break;
+					}
+					//Otherwise the response is the agent's name, and it should be stored
+					else {
+						CustomerClient.agent = new String(response);
+						JOptionPane.showMessageDialog(null, 
+								"Agent found. Name: " + CustomerClient.agent, 
+								"Agent Found", 
+								JOptionPane.INFORMATION_MESSAGE
+								);
+						Platform.runLater(()->{
+							CustomerClient.agentName.setText("Connected To: " + CustomerClient.agent);
+							CustomerClient.clientText.setDisable(false);
+							CustomerClient.send.setDisable(false);
+						});
+						break;
+					}
 				}
-				//Otherwise, the response is the agent's name, and it should be stored
-				else if(!response.equals("Can quit")){
-					CustomerClient.agent = new String(response);
-					JOptionPane.showMessageDialog(null, 
-							"Agent found. Name: " + CustomerClient.agent, 
-							"Agent Found", 
-							JOptionPane.INFORMATION_MESSAGE
-							);
-					Platform.runLater(()->{
-						CustomerClient.agentName.setText("Connected To: " + CustomerClient.agent);
-						CustomerClient.clientText.setDisable(false);
-						CustomerClient.send.setDisable(false);
-					});
-				}
-				//Lastly, check if the customer wanted to quit early, and as such allow the customer to do so
-				else{
-					break;
+				else {
+					if(onlyShowOnce == true){
+						//While we haven't found an agent to talk to yet
+						JOptionPane.showMessageDialog(null, 
+								"Waiting for agents to be available", 
+								"Waiting for agents", 
+								JOptionPane.INFORMATION_MESSAGE
+								);
+						onlyShowOnce = false;
+					}
+					//If the response is to wait for an agent, inform the user to do so
+					try {
+						Platform.runLater(()->{
+							CustomerClient.agentName.setText("Waiting for agents to be available.");
+						});
+						Thread.sleep(1000);
+						Platform.runLater(()->{
+							CustomerClient.agentName.setText("Waiting for agents to be available..");
+						});
+						Thread.sleep(1000);
+						Platform.runLater(()->{
+							CustomerClient.agentName.setText("Waiting for agents to be available...");
+						});
+						Thread.sleep(1000);
+						Platform.runLater(()->{
+							CustomerClient.agentName.setText("Waiting for agents to be available....");
+						});
+						Thread.sleep(1000);
+						Platform.runLater(()->{
+							CustomerClient.agentName.setText("Waiting for agents to be available.....");
+						});
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 			//While the customer has not decided to quit, and has not received word of being able to quit
 			while(CustomerClient.wantsToQuit == false){
 				if(CustomerClient.fromServer.ready()){
-					String[] response = CustomerClient.fromServer.readLine().split("~", 2);
+					String response = CustomerClient.fromServer.readLine();
+					String[] responseSplit = response.split("~", 2);
 					//If the response has 2 parts, then it is a message from the server
-					if(response.length == 2){
-						if(response[0].equals(CustomerClient.agent)){
+					if(responseSplit.length == 2){
+						if(responseSplit[0].equals(CustomerClient.agent)){
 							Platform.runLater(()->{
 								CustomerClient.clientTextArea.setText(
 									CustomerClient.clientTextArea.getText()
-									+ CustomerClient.agent + ": " + response[1] + "\n");
+									+ CustomerClient.agent + ": " + responseSplit[1] + "\n");
 							});
 						}
 					}
-					//Otherwise, the user requested to quit, and the server should quit
-					else{
+					//If the agent force quits, search for another
+					else if(response.equals("Agent force quit")){
+						JOptionPane.showMessageDialog(null, 
+								"The agent exited the application. Shutting down.", 
+								"Agent Exited Application", 
+								JOptionPane.INFORMATION_MESSAGE
+								);
+						CustomerClient.toServer.println("Quit");
 						break;
 					}
+					//Otherwise, the user requested to quit, and the server should quit
+					else{
+						CustomerClient.toServer.println("Quit");
+						CustomerClient.wantsToQuit = true;
+					}
 				}
+				Thread.sleep(1000);
 			}
-			System.exit(0);
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, 
 					"IO Exception encountered. Details: \n" + e, 
@@ -91,9 +113,9 @@ public class CustomerThread extends Thread {
 					JOptionPane.ERROR_MESSAGE
 					);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		System.exit(0);
 	}
 
 }

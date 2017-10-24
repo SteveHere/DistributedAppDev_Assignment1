@@ -1,6 +1,7 @@
 package server;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -27,6 +28,11 @@ public class Server {
 		agentThreads = new HashMap<String, RequestHandler>();
 		agentToCustomer = new HashMap<String, Pair<String, String>>();
 		waitingCustomers = new LinkedList<String>();
+		
+		//If the 'transcripts' folder does not exist, create it
+		if(!(new File("transcripts").exists())){
+			new File("transcripts").mkdirs();
+		}
 		
 		
 		ServerSocket listener;  

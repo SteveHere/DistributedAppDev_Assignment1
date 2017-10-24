@@ -1,6 +1,5 @@
 package server;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -9,7 +8,6 @@ import java.net.Socket;
 import java.util.NoSuchElementException;
 
 import common.Pair;
-import sun.rmi.log.ReliableLog.LogFile;
 
 public class RequestHandler extends Thread {
 	
@@ -90,7 +88,7 @@ public class RequestHandler extends Thread {
 			Server.logFile.println((System.currentTimeMillis() / 1000L) 
 					+ ": IO Exception occured while connecting with "
 					+ clientSocketAddress + "\n" 
-					+ ioe.getStackTrace().toString());
+					+ ioe.toString());
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -118,6 +116,18 @@ public class RequestHandler extends Thread {
 					else{
 						toClient.println("Cannot quit");
 					}
+				}
+				//If the agent force quits, close off everything
+				else if(response.equals("Force quit")){
+					Server.agentThreads.remove(username);
+					Pair<String, String> temp = Server.agentToCustomer.remove(username);
+					if(Server.customerThreads.containsKey(temp.getLeft())){
+						Server.customerThreads.get(temp.getLeft()).toClient.println("Agent force quit");
+					}
+					if(Server.customerThreads.containsKey(temp.getRight())){
+						Server.customerThreads.get(temp.getRight()).toClient.println("Agent force quit");
+					}
+					break;
 				}
 				//Otherwise, it's a message to a customer
 				//In this case, send it to the appropriate customer
@@ -183,83 +193,72 @@ public class RequestHandler extends Thread {
 	private void startCustomerConnection() throws IOException, InterruptedException {
 		//The customer first pushes their own name to the Queue
 		Server.waitingCustomers.add(username);
-		
-		boolean clientWantsToExit = false;
 		String agent = null;
-		while(clientWantsToExit == false){
-			if(fromClient.ready()){
-				//First, receive a response from the client
-				String response = fromClient.readLine();
-				//If the customer requests agents
-				System.out.println(response);
-				//Otherwise, the customer is sending a message to the agent
-				String[] clientResponse = response.split("~", 2);
-				if(clientResponse.length == 2){
-					if(Server.agentThreads.containsKey(clientResponse[0])){
-						record((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
-						Server.agentThreads.get(agent).transferMessage(username, clientResponse[1]);
-					}
-				}
-				else if(response.equals("Waiting for agent")){
-					//If the customer's name is still in queue, send to client to wait for agent
-					if(Server.waitingCustomers.contains(username)){
-						toClient.println("Wait for agent");
-						try {
-							Thread.sleep(5000);
-						} catch (InterruptedException e) {
-							Server.logFile.println((System.currentTimeMillis() / 1000L) 
-							+ ": Thread interruption occured in "
-							+ clientSocket.getInetAddress().toString());
-						}
-					}
-					//If not in queue, search through agentToCustomer to find customer, and return agent
-					else{
-						boolean customerFound = false;
-						for(String agentKey : Server.agentToCustomer.keySet()){
-							Pair<String, String> temp = Server.agentToCustomer.get(agentKey);
-							if(temp.getLeft().equals(username) || temp.getRight().equals(username)){
-								toClient.println(agentKey);
-								agent = agentKey;
-								transcript = new PrintWriter(
-										new FileWriter(
-												new File(".").getCanonicalPath() 
-												+ File.separator + "transcripts" 
-														+ File.separator + agent + "~" + username + ".txt", true)
-										);
-								customerFound = true;
-								break;
-							}
-						}
-						//If the customer cannot be found, add back to queue
-						if(customerFound == false){
-							Server.waitingCustomers.add(username);
-							toClient.println("Wait for agent");
-						}
-					}
-				}
-				//If the customer requests to quit, quit.
-				else if(response.equals("Quit")){
-					clientWantsToExit = true;
-					Server.customerThreads.remove(username);
-					//Remove all traces of the user from the hashmaps
-					if(agent != null && Server.agentThreads.get(agent) != null){
-						Server.agentThreads.get(agent).toClient.println("Remove~" + username);
-						Pair<String, String> temp = Server.agentToCustomer.get(agent);
-						if(temp.getLeft().equals(username)){
-							Server.agentToCustomer.put(agent, new Pair<String, String>(temp.getRight(), null));
-						}
-						else if(temp.getRight().equals(username)){
-							Server.agentToCustomer.put(agent, new Pair<String, String>(temp.getLeft(), null));
-						}
-					}
-					if(transcript != null){
-						transcript.flush();
-						transcript.close();
-					}
-					toClient.println("Can quit");
+		boolean customerQuit = false;
+		//The thread then periodically checks whether or not the name's still there
+		while(Server.waitingCustomers.contains(username)){
+			//If the client has a response here, it should be a quit or force quit
+			//In this case, remove the customer's name
+			if(fromClient.readLine() != null){
+				Server.waitingCustomers.remove(username);
+				Server.customerThreads.remove(username);
+				customerQuit= true;
+			}
+			Thread.sleep(5000);
+		}
+		if(customerQuit == false){
+			for(String agentKey : Server.agentToCustomer.keySet()){
+				Pair<String, String> temp = Server.agentToCustomer.get(agentKey);
+				if(temp.getLeft().equals(username) || temp.getRight().equals(username)){
+					toClient.println(agentKey);
+					agent = agentKey;
+					transcript = new PrintWriter(
+							new FileWriter("transcripts\\" + agent + "~" + username + ".txt")
+							, true);
+					break;
 				}
 			}
-		}
+			boolean clientWantsToExit = false;
+			while(clientWantsToExit == false){
+				String response = fromClient.readLine();
+				if(response != null){
+					//Otherwise, the customer is sending a message to the agent
+					String[] clientResponse = response.split("~", 2);
+					if(clientResponse.length == 2){
+						if(Server.agentThreads.containsKey(clientResponse[0])){
+							record((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
+							Server.agentThreads.get(agent).transferMessage(username, clientResponse[1]);
+						}
+					}
+					//If the customer requests to quit, quit.
+					else if(response.equals("Quit") || response.equals("Force Quit")){
+						System.out.println("Force quit");
+						clientWantsToExit = true;
+						Server.customerThreads.remove(username);
+						//Remove all traces of the user from the hashmaps
+						if(agent != null && Server.agentThreads.get(agent) != null){
+							Server.agentThreads.get(agent).toClient.println("Remove~" + username);
+							Pair<String, String> temp = Server.agentToCustomer.get(agent);
+							if(temp.getLeft().equals(username)){
+								Server.agentToCustomer.put(agent, new Pair<String, String>(temp.getRight(), null));
+							}
+							else if(temp.getRight().equals(username)){
+								Server.agentToCustomer.put(agent, new Pair<String, String>(temp.getLeft(), null));
+							}
+						}
+						if(transcript != null){
+							transcript.flush();
+							transcript.close();
+						}
+						if(response.equals("Quit")){
+							toClient.println("Can quit");
+						}
+						break;
+					}
+				}
+				Thread.sleep(1000);
+			}
+		}	
 	}
 	
 	//This method transfers messages from external calls to the connected client
@@ -272,7 +271,6 @@ public class RequestHandler extends Thread {
 		if(transcript != null){
 			transcript.println(string);		
 			transcript.flush();
-			System.out.println("REcorded");
 		}
 	}
 

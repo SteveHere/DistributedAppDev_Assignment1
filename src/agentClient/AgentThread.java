@@ -25,14 +25,14 @@ public class AgentThread extends Thread {
 							Platform.runLater(()->{
 								AgentClient.customer1Dialog.setText(
 										AgentClient.customer1Dialog.getText()
-										+ "\n" + AgentClient.customer1 + ": " + response[1]);
+										+ AgentClient.customer1 + ": " + response[1] + "\n");
 							});
 						}
 						else if(response[0].equals(AgentClient.customer2)){
 							Platform.runLater(()->{
 								AgentClient.customer2Dialog.setText(
 										AgentClient.customer2Dialog.getText()
-										+ "\n" + AgentClient.customer2 + ": " + response[1]);
+										+ AgentClient.customer2 + ": " + response[1] + "\n");
 							});
 						}
 						//If it's a new customer, add it to an unused area
@@ -63,7 +63,7 @@ public class AgentThread extends Thread {
 							}
 						}
 						else if(response[0].equals("Remove")){
-							if(AgentClient.customer1.equals(response[1])){
+							if(AgentClient.customer1 != null && AgentClient.customer1.equals(response[1])){
 								AgentClient.customer1 = null;
 								Platform.runLater(()->{
 									AgentClient.customer1Dialog.setText("");
@@ -76,7 +76,7 @@ public class AgentThread extends Thread {
 										JOptionPane.INFORMATION_MESSAGE
 										);
 							}
-							else if(AgentClient.customer2.equals(response[1])){
+							else if(AgentClient.customer2 != null && AgentClient.customer2.equals(response[1])){
 								AgentClient.customer2 = null;
 								Platform.runLater(()->{
 									AgentClient.customer2Dialog.setText("");
@@ -101,7 +101,7 @@ public class AgentThread extends Thread {
 									"Session Quit Successful", 
 									JOptionPane.INFORMATION_MESSAGE
 									);
-							System.exit(0);
+							break;
 						}
 						if(response[0].equals("Cannot quit")){
 							JOptionPane.showMessageDialog(null, 

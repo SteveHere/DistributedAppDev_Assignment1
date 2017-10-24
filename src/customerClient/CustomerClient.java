@@ -91,6 +91,9 @@ public class CustomerClient extends Application {
 						thread.start();
 						
 						stage.showAndWait();
+						if(CustomerClient.wantsToQuit == false){
+							toServer.println("Force quit");
+						}
 					}
 					else if(response.equals("Username already taken")){
 						JOptionPane.showMessageDialog(null, 
@@ -157,6 +160,7 @@ public class CustomerClient extends Application {
 		//Styling of components
 		clientTextArea.setMinHeight(390);
 		clientTextArea.setMinWidth(440);
+		clientTextArea.setEditable(false);
 		
 		clientText.setMinWidth(420);
 		clientText.setDisable(true);
@@ -166,13 +170,12 @@ public class CustomerClient extends Application {
 		send.setMinWidth(55);
 		send.setDisable(true);
 		
-		//Evetn handling
+		//Event handling
 		send.setOnMouseClicked(e -> {
 			if(!clientText.getText().equals("") && agent != null){
 				clientTextArea.setText(clientTextArea.getText() 
 						+ username + ": " + clientText.getText() + "\n");
 				clientTextArea.positionCaret(clientTextArea.getLength());
-				System.out.println(clientText.getText());
 				toServer.println(agent + "~" + clientText.getText());
 				clientText.setText("");
 			}
