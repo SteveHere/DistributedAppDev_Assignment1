@@ -170,6 +170,7 @@ public class RequestHandler extends Thread {
 				try{
 					String customerToAdd = Server.waitingCustomers.remove();
 					toClient.println("NewCustomer~" + customerToAdd);
+					Server.customerThreads.get(customerToAdd).toClient.println(username);
 					Pair<String, String> t = Server.agentToCustomer.get(username);
 					Pair<String, String> newPair = null;
 					if(t.isEmpty()){
@@ -207,17 +208,6 @@ public class RequestHandler extends Thread {
 			Thread.sleep(5000);
 		}
 		if(customerQuit == false){
-			for(String agentKey : Server.agentToCustomer.keySet()){
-				Pair<String, String> temp = Server.agentToCustomer.get(agentKey);
-				if(temp.getLeft().equals(username) || temp.getRight().equals(username)){
-					toClient.println(agentKey);
-					agent = agentKey;
-					transcript = new PrintWriter(
-							new FileWriter("transcripts\\" + agent + "~" + username + ".txt")
-							, true);
-					break;
-				}
-			}
 			boolean clientWantsToExit = false;
 			while(clientWantsToExit == false){
 				String response = fromClient.readLine();
