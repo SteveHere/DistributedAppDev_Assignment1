@@ -206,10 +206,12 @@ public class RequestHandler extends Thread {
 					customerQuit= true;
 					break;
 				}
+				/*QUICK FIX: FIX THIS LATER*/
 				else{
 					String[] clientResponse = response.split("~", 2);
 					if(clientResponse.length == 2){
 						if(Server.agentThreads.containsKey(clientResponse[0])){
+							agent = clientResponse[0];
 							record((System.currentTimeMillis() / 1000L) + " " + username + ": " + clientResponse[1]);
 							Server.agentThreads.get(clientResponse[0]).transferMessage(username, clientResponse[1]);
 							break;
@@ -235,7 +237,6 @@ public class RequestHandler extends Thread {
 					}
 					//If the customer requests to quit, quit.
 					else if(response.equals("Quit") || response.equals("Force Quit")){
-						System.out.println("Force quit");
 						clientWantsToExit = true;
 						Server.customerThreads.remove(username);
 						//Remove all traces of the user from the hashmaps
