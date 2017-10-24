@@ -102,7 +102,7 @@ public class AgentThread extends Thread {
 									"Session Quit Successful", 
 									JOptionPane.INFORMATION_MESSAGE
 									);
-							break;
+							System.exit(0);
 						}
 						if(response[0].equals("Cannot quit")){
 							JOptionPane.showMessageDialog(null, 
